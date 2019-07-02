@@ -71,8 +71,21 @@ class ParserModel(nn.Module):
         ###     Linear Layer: https://pytorch.org/docs/stable/nn.html#torch.nn.Linear
         ###     Xavier Init: https://pytorch.org/docs/stable/nn.html#torch.nn.init.xavier_uniform_
         ###     Dropout: https://pytorch.org/docs/stable/nn.html#torch.nn.Dropout
-
-
+        input_weights_shape = (self.n_features*self.embed_size, self.hidden_size)
+        output_weight_shape = (self.hidden_size, self.n_classes)
+        self.embed_to_hidden = nn.Linear(*input_weights_shape)
+        self.dropout = nn.Dropout(p=self.dropout_prob)
+        nn.init.xavier_uniform_(self.embed_to_hidden.weight)
+        #self.embed_to_hidden.weight = nn.Parameter(nn.init.xavier_uniform_(torch.empty(*input_weights_shape)))
+        self.hidden_to_logits = nn.Linear(*output_weight_shape)
+        nn.init.xavier_uniform_(self.hidden_to_logits.weight)
+        #self.hidden_to_logits.weight = nn.Parameter(nn.init.xavier_uniform_(torch.empty(*output_weight_shape)))
+        
+#         self.embed_to_hidden = nn.Linear(self.n_features*self.embed_size, self.hidden_size)
+#         nn.init.xavier_uniform_(self.embed_to_hidden.weight)
+#         self.dropout = nn.Dropout(self.dropout_prob)
+#         self.hidden_to_logits = nn.Linear(self.hidden_size, self.n_classes)
+#         nn.init.xavier_uniform_(self.hidden_to_logits.weight)
         ### END YOUR CODE
 
     def embedding_lookup(self, t):
@@ -103,7 +116,7 @@ class ParserModel(nn.Module):
         ###  Please see the following docs for support:
         ###     Embedding Layer: https://pytorch.org/docs/stable/nn.html#torch.nn.Embedding
         ###     View: https://pytorch.org/docs/stable/tensors.html#torch.Tensor.view
-
+        x = self.pretrained_embeddings(t).view(t.shape[0], t.shape[1]*self.embed_size)
 
         ### END YOUR CODE
         return x
@@ -141,7 +154,10 @@ class ParserModel(nn.Module):
         ###
         ### Please see the following docs for support:
         ###     ReLU: https://pytorch.org/docs/stable/nn.html?highlight=relu#torch.nn.functional.relu
-
-
+        # print(t)
+        embs = self.embedding_lookup(t)
+        output = self.embed_to_hidden(embs)
+        nn.functional.relu_(output)
+        logits = self.hidden_to_logits(self.dropout(output))
         ### END YOUR CODE
         return logits

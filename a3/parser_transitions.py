@@ -30,7 +30,9 @@ class PartialParse(object):
         ###
         ### Note: The root token should be represented with the string "ROOT"
         ###
-
+        self.stack = ["ROOT"]
+        self.buffer = self.sentence.copy()
+        self.dependencies = []
 
         ### END YOUR CODE
 
@@ -50,7 +52,19 @@ class PartialParse(object):
         ###         2. Left Arc
         ###         3. Right Arc
 
+        if transition == "S":
+            tmp = self.buffer.pop(0)
+            self.stack.append(tmp)
 
+        if transition == "LA":
+            dependent = self.stack.pop(-2)
+            head = self.stack[-1]
+            self.dependencies.append((head, dependent))
+            
+        if transition == "RA":
+            dependent = self.stack.pop(-1)
+            head = self.stack[-1]
+            self.dependencies.append((head, dependent))
         ### END YOUR CODE
 
     def parse(self, transitions):
@@ -58,7 +72,7 @@ class PartialParse(object):
 
         @param transitions (list of str): The list of transitions in the order they should be applied
 
-        @return dsependencies (list of string tuples): The list of dependencies produced when
+        @return dependencies (list of string tuples): The list of dependencies produced when
                                                         parsing the sentence. Represented as a list of
                                                         tuples where each tuple is of the form (head, dependent).
         """
@@ -100,8 +114,20 @@ def minibatch_parse(sentences, model, batch_size):
     ###             contains references to the same objects. Thus, you should NOT use the `del` operator
     ###             to remove objects from the `unfinished_parses` list. This will free the underlying memory that
     ###             is being accessed by `partial_parses` and may cause your code to crash.
-
-
+    sentences_size = len(sentences)
+    steps = (sentences_size - 1)//batch_size + 1
+    partial_parses = [PartialParse(sentence) for sentence in sentences]
+    for step in range(0, steps):
+        batch = partial_parses[step*batch_size: (step + 1)*batch_size]
+        # print(batch)
+        while(len(batch) > 0):
+            transition_per_sent = model.predict(batch)
+            for ind, trans in enumerate(transition_per_sent):
+                batch[ind].parse_step(trans)
+            batch = [pp for pp in batch if len(pp.stack) > 1 or len(pp.buffer) > 0]
+        # print([pp.dependencies for pp in partial_parses])
+    for n in range(len(sentences)):
+        dependencies.append(partial_parses[n].dependencies)
     ### END YOUR CODE
 
     return dependencies
